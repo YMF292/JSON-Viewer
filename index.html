@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>JSON Viewer</title>
+		<style>
+			*{
+				font-family: monospace;
+			}
+
+			body
+			{
+				margin: 32px;
+			}
+
+			label
+			{
+				display: inline-block;
+				width: 64px;
+			}
+
+			li > img
+			{
+				cursor: pointer;
+				height: 9px;
+				margin-right: 4px;
+				width: 9px;
+			}
+
+			ul
+			{
+				list-style-type: none;
+			}
+
+			.form-group
+			{
+				margin: 4px 0;
+			}
+
+			#error
+			{
+				color: #F00;
+			}
+
+			#spinner
+			{
+				vertical-align: text-top;
+			}
+
+			#tree
+			{
+				padding-left: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<p>JSON Viewer</p>
+		<div class="form">
+			<div class="form-group">
+				<label for="url">URL</label>
+				<input id="url" spellcheck="false" value="https://api.overwatchleague.com/v2/teams/4410">
+			</div>
+			<div class="form-group">
+				<label></label>
+				<input id="button" type="button" value="Go">
+				<img id="spinner" src="spinner.gif" hidden>
+			</div>
+		</div>
+		<ul id="tree" hidden></ul>
+		<pre id="error" hidden></pre>
+		<p>©2020 Jinri</p>
+		<script>
+			function throwError(code, message)
+			{
+				switch(code)
+				{
+					case 404:
+						message = '404 Not Found';
+						break;
+
+					default:
+						if(!message)
+						{
+							message = 'Unknown';
+						}
+						break;
+				}
+
+				error.innerHTML = 'Error: '+message;
+
+				spinner.hidden = true;
+				error.hidden = false;
+
+				button.disabled = false;
+			}
+
+			function toggle()
+			{
+				var children = this.parentElement.nextSibling;
+
+				if(children.hidden)
+				{
+					this.src = 'minus.gif';
+					children.hidden = false;
+				}
+				else
+				{
+					this.src = 'plus.gif';
+					children.hidden = true;
+				}
+			}
+
+			function parse(object)
+			{
+				for(var key in object)
+				{
+					var value = object[key];
+					var parent = stack[stack.length-1];
+
+					if(typeof value === 'object')
+					{
+						var li = document.createElement('li');
+						parent.appendChild(li);
+
+						var img = document.createElement('img');
+						img.addEventListener('click', toggle);
+						img.src = 'minus.gif';
+						li.appendChild(img);
+
+						var span = document.createElement('span');
+						span.innerHTML = key+':';
+						li.appendChild(span);
+
+						var ul = document.createElement('ul');
+						parent.appendChild(ul);
+
+						stack.push(ul);
+						parse(value);
+					}
+					else
+					{
+						var li = document.createElement('li');
+						li.innerHTML = key+': '+value;
+						parent.appendChild(li);
+					}
+				}
+
+				stack.pop();
+			}
+
+			function query(url)
+			{
+				var xhr = new XMLHttpRequest();
+
+				xhr.onreadystatechange = function()
+				{
+					if(this.readyState == 4)
+					{
+						if(this.status == 200)
+						{
+							try
+							{
+								var json = JSON.parse(this.response);
+							}
+							catch
+							{
+								throwError(0, 'Failed to parse JSON');
+								return;
+							}
+
+							stack = [tree];
+							parse(json);
+
+							tree.hidden = false;
+							spinner.hidden = true;
+
+							button.disabled = false;
+						}
+						else
+						{
+							throwError(this.status);
+						}
+					}
+				}
+
+				xhr.open('GET', url);
+				xhr.send();
+			}
+
+			button.onclick = function()
+			{
+				button.disabled = true;
+
+				tree.hidden = true;
+				error.hidden = true;
+				spinner.hidden = false;
+
+				tree.innerHTML = '';
+
+				query(url.value);
+			}
+		</script>
+	</body>
+</html>
